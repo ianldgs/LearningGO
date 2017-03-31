@@ -68,7 +68,7 @@ func Crawl(url string, depth int, c chan []string) {
 		}
 	}
 
-	if depth--; depth > 0 {
+	if depth--; depth >= 0 {
 		for i, foundUrl := range foundUrls  {
 			go Crawl(foundUrl, depth, channels[i])
 		}
