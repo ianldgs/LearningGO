@@ -19,25 +19,9 @@ func FindUrls(body string) (urls []string) {
 	return
 }
 
-func findUrls(body string, c chan string) {
-	for _, url := range FindUrls(body) {
-		c <- url
-	}
-}
-
-func Crawl(url string, depth int) (urls []string) {
-	response, _ := http.Get(url)
-
-	body, _ := ioutil.ReadAll(response.Body)
-
-	urls = FindUrls(string(body))
-
-	return
-}
-
 var visited = make(map[string]bool)
 
-func CrawlConcurrent(url string, depth int, c chan []string) {
+func Crawl(url string, depth int, c chan []string) {
 	if (regex_dont_visit.MatchString(url)) {
 		fmt.Println("NOT Visiting:", url)
 		c <- make([]string, 0)
@@ -72,19 +56,24 @@ func CrawlConcurrent(url string, depth int, c chan []string) {
 
 	foundUrls := FindUrls(string(body))
 
+	channels := make([]chan []string, len(foundUrls));
+
 	for i, foundUrl := range foundUrls  {
+		channels[i] = make(chan []string, 1)
+
 		if (!regex_uri.MatchString(foundUrl)) {
+			//TODO: pegar o http(s)://domain da url, sem o caminho atual
 			foundUrls[i] = url + "/" + foundUrl
 		}
 	}
 
 	if depth--; depth > 0 {
-		for _, foundUrl := range foundUrls  {
-			c := make(chan []string)
+		for i, foundUrl := range foundUrls  {
+			go Crawl(foundUrl, depth, channels[i])
+		}
 
-			go CrawlConcurrent(foundUrl, depth, c)
-
-			moreUrls := <- c
+		for i := range foundUrls  {
+			moreUrls := <- channels[i]
 
 			for _, _url := range moreUrls  {
 				foundUrls = append(foundUrls, _url)
@@ -123,7 +112,7 @@ func main() {
 
 	c := make(chan []string, 1)
 
-	go CrawlConcurrent(url, depth, c)
+	go Crawl(url, depth, c)
 
 	fmt.Println("Código concorrente rodando...")
 
