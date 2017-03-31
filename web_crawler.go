@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"regexp"
+	"./arrays"
 )
 
 var regex_links = regexp.MustCompile("(?U)href=\"(.*)\"")
@@ -86,20 +87,6 @@ func Crawl(url string, depth int, c chan []string) {
 	return
 }
 
-func arrayStringUnique(arr []string) (arrUnique []string) {
-	items := make(map[string]bool)
-
-	for _, item := range arr  {
-		items[item] = true
-	}
-
-	for item := range items {
-		arrUnique = append(arrUnique, item)
-	}
-
-	return
-}
-
 func main() {
 	var url string
 	var depth int
@@ -117,7 +104,7 @@ func main() {
 	fmt.Println("Código concorrente rodando...")
 
 	urls := <- c
-	urls = arrayStringUnique(urls)
+	urls = arrays.StringUnique(urls)
 
 	for _, url := range urls  {
 		fmt.Println(url)
