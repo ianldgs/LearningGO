@@ -135,4 +135,7 @@ func main() {
 	}
 
 	fmt.Println(len(urls), "links found.")
+
+	fmt.Print("Aperte enter para finalizar...")
+	fmt.Scanln()
 }
