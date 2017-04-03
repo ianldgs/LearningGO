@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"io/ioutil"
+	"net/http"
 	"regexp"
+	"sync"
+
 	"./arrays"
 )
 
@@ -20,22 +22,30 @@ func FindUrls(body string) (urls []string) {
 	return
 }
 
-var visited = make(map[string]bool)
+var (
+	visited   = make(map[string]bool)
+	visitedMu sync.Mutex
+)
 
 func Crawl(url string, depth int, c chan []string) {
-	if (regex_dont_visit.MatchString(url)) {
+	if regex_dont_visit.MatchString(url) {
 		fmt.Println("NOT Visiting:", url)
 		c <- make([]string, 0)
 		return
 	}
 
+	visitedMu.Lock()
+
 	if _, _visited := visited[url]; _visited {
 		fmt.Println("Already visited:", url)
 		c <- make([]string, 0)
+		visitedMu.Unlock()
 		return
 	}
 
 	visited[url] = true
+
+	visitedMu.Unlock()
 
 	fmt.Println("Visiting:", url)
 
@@ -57,26 +67,26 @@ func Crawl(url string, depth int, c chan []string) {
 
 	foundUrls := FindUrls(string(body))
 
-	channels := make([]chan []string, len(foundUrls));
+	channels := make([]chan []string, len(foundUrls))
 
-	for i, foundUrl := range foundUrls  {
+	for i, foundUrl := range foundUrls {
 		channels[i] = make(chan []string, 1)
 
-		if (!regex_uri.MatchString(foundUrl)) {
+		if !regex_uri.MatchString(foundUrl) {
 			//TODO: pegar o http(s)://domain da url, sem o caminho atual
 			foundUrls[i] = url + "/" + foundUrl
 		}
 	}
 
 	if depth--; depth >= 0 {
-		for i, foundUrl := range foundUrls  {
+		for i, foundUrl := range foundUrls {
 			go Crawl(foundUrl, depth, channels[i])
 		}
 
-		for i := range foundUrls  {
-			moreUrls := <- channels[i]
+		for i := range foundUrls {
+			moreUrls := <-channels[i]
 
-			for _, _url := range moreUrls  {
+			for _, _url := range moreUrls {
 				foundUrls = append(foundUrls, _url)
 			}
 		}
@@ -103,10 +113,10 @@ func main() {
 
 	fmt.Println("Código concorrente rodando...")
 
-	urls := <- c
+	urls := <-c
 	urls = arrays.StringUnique(urls)
 
-	for _, url := range urls  {
+	for _, url := range urls {
 		fmt.Println(url)
 	}
 
